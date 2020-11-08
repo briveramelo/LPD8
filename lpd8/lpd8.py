@@ -145,7 +145,7 @@ class LPD8(Thread):
             on_array = []
             off_array = []
             blink_array = []
-            for pad in Pads.ALL_PADS:
+            for pad in Pads.PAD_INDICES[self._program].ALL_PADS:
                 state = self._pads.get_state(self._program, pad)
                 if state == Pad.BLINK:
                     blink_array.append(pad)

@@ -87,33 +87,54 @@ class Pad:
             return None
 
 
+class PadIndices:
+
+    def __init__(self, pad_indices):
+        self.set_pad_mapping(pad_indices)
+
+    def set_pad_mapping(self, pad_indices):
+        self.ALL_PADS = pad_indices
+        self.PAD_1 = pad_indices[0]
+        self.PAD_2 = pad_indices[1]
+        self.PAD_3 = pad_indices[2]
+        self.PAD_4 = pad_indices[3]
+        self.PAD_5 = pad_indices[4]
+        self.PAD_6 = pad_indices[5]
+        self.PAD_7 = pad_indices[6]
+        self.PAD_8 = pad_indices[7]
+
+        self._pad_index = {
+            self.PAD_1: 1,
+            self.PAD_2: 2,
+            self.PAD_3: 3,
+            self.PAD_4: 4,
+            self.PAD_5: 5,
+            self.PAD_6: 6,
+            self.PAD_7: 7,
+            self.PAD_8: 8
+        }
+
+    def get(self, pad):
+        return self._pad_index[pad]
+
+
 class Pads:
     """
     Class that defines a full array of pads (8 pads in each program so 4 X 8 = 32 pads in total
     """
 
-    PAD_1 = 60
-    PAD_2 = 62
-    PAD_3 = 64
-    PAD_4 = 65
-    PAD_5 = 67
-    PAD_6 = 69
-    PAD_7 = 71
-    PAD_8 = 72
-
-    ALL_PADS = [PAD_1, PAD_2, PAD_3, PAD_4, PAD_5, PAD_6, PAD_7, PAD_8]
-    PAD_MAX = len(ALL_PADS)
-
-    _pad_index = {
-        PAD_1: 1,
-        PAD_2: 2,
-        PAD_3: 3,
-        PAD_4: 4,
-        PAD_5: 5,
-        PAD_6: 6,
-        PAD_7: 7,
-        PAD_8: 8
+    PGM_1 = PadIndices([36, 37, 38, 39, 40, 41, 42, 43])
+    PGM_2 = PadIndices([35, 36, 42, 39, 37, 38, 46, 44])
+    PGM_3 = PadIndices([60, 62, 64, 65, 67, 69, 71, 72])
+    PGM_4 = PadIndices([36, 38, 40, 41, 43, 45, 47, 48])
+    PAD_INDICES = {
+        Programs.PGM_1: PGM_1,
+        Programs.PGM_2: PGM_2,
+        Programs.PGM_3: PGM_3,
+        Programs.PGM_4: PGM_4,
     }
+
+    PAD_MAX = 8
 
     def __init__(self, programs=Programs.PGM_MAX, pads=PAD_MAX):
         self._pads = []
@@ -122,20 +143,23 @@ class Pads:
             for pad in range(pads + 1):
                 self._pads[program].append(Pad())
 
+    def get_all_pads(self, program):
+        return self.PAD_INDICES[program].ALL_PADS
+
     def get_mode(self, program, pad):
-        return self._pads[program][self._pad_index[pad]].get_mode()
+        return self._pads[program][self.PAD_INDICES[program].get(pad)].get_mode()
 
     def set_mode(self, program, pad, mode):
-        self._pads[program][self._pad_index[pad]].set_mode(mode)
+        self._pads[program][self.PAD_INDICES[program].get(pad)].set_mode(mode)
 
     def note_on(self, program, pad, velocity):
-        return self._pads[program][self._pad_index[pad]].note_on(velocity)
+        return self._pads[program][self.PAD_INDICES[program].get(pad)].note_on(velocity)
 
     def note_off(self, program, pad):
-        return self._pads[program][self._pad_index[pad]].note_off()
+        return self._pads[program][self.PAD_INDICES[program].get(pad)].note_off()
 
     def set_switch_state(self, program, pad, state):
-        return self._pads[program][self._pad_index[pad]].set_switch_state(state)
+        return self._pads[program][self.PAD_INDICES[program].get(pad)].set_switch_state(state)
 
     def get_state(self, program, pad):
-        return self._pads[program][self._pad_index[pad]].get_state()
+        return self._pads[program][self.PAD_INDICES[program].get(pad)].get_state()

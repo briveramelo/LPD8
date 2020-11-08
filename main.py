@@ -46,10 +46,11 @@ lpd8.start()
 # This object is created to test different callbacks from LPD8 class
 consummer = Consummer()
 
-lpd8.subscribe(consummer, consummer.ctrl_value, Programs.PGM_3, LPD8.CTRL, Knobs.ALL_KNOBS)
-lpd8.subscribe(consummer, consummer.note_on_value, Programs.PGM_3, LPD8.NOTE_ON, Pads.ALL_PADS)
-lpd8.subscribe(consummer, consummer.note_off_value, Programs.PGM_3, LPD8.NOTE_OFF, Pads.ALL_PADS)
-# lpd8.subscribe(consummer, consummer.pgm_change, Programs.PGM_3, LPD8.PGM_CHG, Pgm_Chg.PGM_CHG_3)
+for PGM in Programs.ALL_PGMS:
+    lpd8.subscribe(consummer, consummer.ctrl_value, PGM, LPD8.CTRL, Knobs.ALL_KNOBS)
+    lpd8.subscribe(consummer, consummer.note_on_value, PGM, LPD8.NOTE_ON, Pads.PAD_INDICES[PGM].ALL_PADS)
+    lpd8.subscribe(consummer, consummer.note_off_value, PGM, LPD8.NOTE_OFF, Pads.PAD_INDICES[PGM].ALL_PADS)
+    lpd8.subscribe(consummer, consummer.pgm_change, PGM, LPD8.PGM_CHG, PGM)
 
 # We loop as long as test class allows it
 while consummer.is_running():

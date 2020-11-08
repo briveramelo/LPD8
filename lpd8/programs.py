@@ -10,3 +10,4 @@ class Programs:
     PGM_4 = 4
 
     PGM_MAX = 4
+    ALL_PGMS = [PGM_1, PGM_2, PGM_3, PGM_4]
