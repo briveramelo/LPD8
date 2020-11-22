@@ -1,68 +1,71 @@
+import sys
+
 from lpd8.lpd8 import LPD8
 from lpd8.programs import Programs
-from lpd8.pads import Pad, Pads
+from lpd8.pads import Pads
 from lpd8.knobs import Knobs
-from lpd8.pgm_chg import Pgm_Chg
 from consummer import Consummer
 from time import sleep
+from audioMappings import AudioMappings
+import json
+from os import path
 
-# Create an LPD8 object and try to start it (open MIDI in and out communication)
-lpd8 = LPD8()
-lpd8.start()
 
-# In normal times, a control knob is meant to be sticky. That means that if we change program and then knob
-# value, knob will not react when we return to original program until last stored value for this program
-# will be reached. It will then follow changes normally
-# Note that we can define sticky mode for a single knob, an array of knobs or all knobs
-# lpd8.set_not_sticky_knob(Programs.PGM_3, [Knobs.KNOB_1, Knobs.KNOB_2, Knobs.KNOB_3, Knobs.KNOB_4])
+def main(argv):
+    sound_map_path = argv[0]
+    if not path.exists(sound_map_path):
+        raise FileNotFoundError("sound map not found at %s" % sound_map_path)
+    if not sound_map_path.endswith(".json"):
+        raise TypeError("sound map file not json file at %s" % sound_map_path)
 
-# In all following settings, we will define limits / actions for PROGRAM 4
-# Define control knob 1 limits from -1 to 1 and set increments to float values
-# Define control knob 2 limits from 0 to 100 with 10 steps (limit values to 0, 10, 20, ..., 90, 100)
-# Knobs that have no definition range from 0..127 with integer increments of 1 (default MIDI behaviour)
-# lpd8.set_knob_limits(Programs.PGM_3, Knobs.KNOB_1, -1, 1, is_int=False)
-# lpd8.set_knob_limits(Programs.PGM_3, Knobs.KNOB_2, 0, 100, steps=10)
+    lpd8 = LPD8()
+    lpd8.start()
 
-# Set An initial value for knob 3 to 63
-# lpd8.set_knob_value(Programs.PGM_3, Knobs.KNOB_3, 63)
+    # load config for sound map and format
+    with open(sound_map_path) as sound_map_file:
+        sound_map_json = json.load(sound_map_file)
 
-# Set different modes for pads
-# Note that we can define modes for a single pad, an array of pads or all pads
-# Pads 1 and two will blink and will be in switch mode (every push changes state between 0 and 1)
-# Pad 3 won't blink but will be in switch mode too
-# Pad 4 will be in push mode, sending a 1 at every NOTE ON event and a 0 at every NOTE OFF event
-# Pads that have no definition are set in classical pad mode with NOTE ON / NOTE OFF events and velocity values
-# lpd8.set_pad_mode(Programs.PGM_3, [Pads.PAD_1, Pads.PAD_2], Pad.PAD_MODE)
-# lpd8.set_pad_mode(Programs.PGM_3, Pads.PAD_3, Pad.SWITCH_MODE)
-# lpd8.set_pad_mode(Programs.PGM_3, Pads.PAD_4, Pad.PUSH_MODE)
+        keys = sound_map_json.keys()
+        if not len(keys) == 4:
+            raise TypeError("sound map json should use exactly 4 keys named: '1','2','3',4'")
+        for i in range(1, 5):
+            if not str(i) in keys:
+                raise TypeError("sound map json should use exactly 4 keys named: '1','2','3',4'")
+            if not len(sound_map_json[str(i)]) == 8:
+                raise TypeError("sound map json keys should be exactly 8 items long")
 
-# For a pad of type SWITCH, sets the initial state of pad
-# Note that we can define modes for a single pad, an array of pads or all pads
-# lpd8.set_pad_switch_state(Programs.PGM_3, [Pads.PAD_1, Pads.PAD_3], Pad.ON)
+        for i in range(1, 5):
+            sound_map_json[i] = sound_map_json.pop(str(i))
+            for j in range(0, 8):
+                sound_file_path = sound_map_json[i][j]
+                if not path.exists(sound_file_path):
+                    raise FileNotFoundError("file not found at %s" % sound_file_path)
 
-# Subscribe to different events and map them to a method in test object
-# Note that we can subscribe events for a single object, an array of objects or all objects of a group
+    audio_mappings = AudioMappings(sound_map_json)
+    consummer = Consummer(audio_mappings)
 
-# This object is created to test different callbacks from LPD8 class
-consummer = Consummer()
+    for PGM in Programs.ALL_PGMS:
+        lpd8.subscribe(consummer, consummer.ctrl_value, PGM, LPD8.CTRL, Knobs.ALL_KNOBS)
+        lpd8.subscribe(consummer, consummer.note_on_value, PGM, LPD8.NOTE_ON, Pads.PAD_INDICES[PGM].ALL_PADS)
+        lpd8.subscribe(consummer, consummer.note_off_value, PGM, LPD8.NOTE_OFF, Pads.PAD_INDICES[PGM].ALL_PADS)
+        lpd8.subscribe(consummer, consummer.pgm_change, PGM, LPD8.PGM_CHG, PGM)
 
-for PGM in Programs.ALL_PGMS:
-    lpd8.subscribe(consummer, consummer.ctrl_value, PGM, LPD8.CTRL, Knobs.ALL_KNOBS)
-    lpd8.subscribe(consummer, consummer.note_on_value, PGM, LPD8.NOTE_ON, Pads.PAD_INDICES[PGM].ALL_PADS)
-    lpd8.subscribe(consummer, consummer.note_off_value, PGM, LPD8.NOTE_OFF, Pads.PAD_INDICES[PGM].ALL_PADS)
-    lpd8.subscribe(consummer, consummer.pgm_change, PGM, LPD8.PGM_CHG, PGM)
+    print('ready to play sounds')
+    # We loop as long as test class allows it
+    while consummer.is_running():
 
-# We loop as long as test class allows it
-while consummer.is_running():
+        # Every loop, we update pads status (blink, ON or OFF)
+        # This method returns True if LPD8 pad is still running, False otherwise
+        if lpd8.pad_update():
+            sleep(.5)
+        else:
 
-    # Every loop, we update pads status (blink, ON or OFF)
-    # This method returns True if LPD8 pad is still running, False otherwise
-    if lpd8.pad_update():
-        sleep(.5)
-    else:
+            # If LPD8 pad is not running anymore, we leave the loop
+            consummer.stop()
 
-        # If LPD8 pad is not running anymore, we leave the loop
-        consummer.stop()
+    # We tidy up things and kill LPD8 process
+    lpd8.stop()
 
-# We tidy up things and kill LPD8 process
-lpd8.stop()
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
